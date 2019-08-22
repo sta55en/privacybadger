@@ -27,7 +27,6 @@ var pbStorage = require("storage");
 var HeuristicBlocking = require("heuristicblocking");
 var FirefoxAndroid = require("firefoxandroid");
 var webrequest = require("webrequest");
-var widgetLoader = require("widgetloader");
 
 var Migrations = require("migrations").Migrations;
 var incognito = require("incognito");
@@ -49,11 +48,6 @@ function Badger(from_qunit) {
 
   self.webRTCAvailable = checkWebRTCBrowserSupport();
   self.firstPartyDomainPotentiallyRequired = testCookiesFirstPartyDomain();
-
-  self.widgetList = [];
-  widgetLoader.loadWidgetsFromFile("data/socialwidgets.json", (response) => {
-    self.widgetList = response;
-  });
 
   self.storage = new pbStorage.BadgerPen(async function (thisStorage) {
     self.initializeDefaultSettings();

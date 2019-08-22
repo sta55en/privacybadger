@@ -32,6 +32,7 @@ var constants = require("constants");
 var getSurrogateURI = require("surrogates").getSurrogateURI;
 var incognito = require("incognito");
 var utils = require("utils");
+var widgetLoader = require("widgetloader");
 
 /************ Local Variables *****************/
 let temporaryWidgetUnblock = {};
@@ -513,7 +514,17 @@ let getWidgetBlockList = (function () {
     { key: "allow_once" },
   ];
 
-  return function () {
+  // cached widget list
+  let widgetList;
+
+  // start loading the widget list from disk
+  let widgetListPromise = new Promise(resolve => {
+    widgetLoader.loadWidgetsFromFile("data/socialwidgets.json", response => {
+      resolve(response);
+    });
+  }).catch(console.error);
+
+  return async function () {
     // A mapping of individual SocialWidget objects to boolean values that determine
     // whether the content script should replace that tracker's button/widget
     var widgetsToReplace = {};
@@ -527,7 +538,9 @@ let getWidgetBlockList = (function () {
       }, {});
     }
 
-    badger.widgetList.forEach(function (widget) {
+    widgetList = await widgetListPromise;
+
+    widgetList.forEach(function (widget) {
       // Only replace blocked and yellowlisted widgets
       widgetsToReplace[widget.name] = constants.BLOCKED_ACTIONS.has(
         badger.storage.getBestAction(widget.domain)
@@ -536,7 +549,7 @@ let getWidgetBlockList = (function () {
 
     return {
       translations,
-      trackers: badger.widgetList,
+      trackers: widgetList,
       trackerButtonsToReplace: widgetsToReplace
     };
   };
@@ -612,8 +625,12 @@ function dispatcher(request, sender, sendResponse) {
 
   } else if (request.checkReplaceButton) {
     if (badger.isPrivacyBadgerEnabled(window.extractHostFromURL(sender.tab.url)) && badger.isWidgetReplacementEnabled()) {
-      let widgetBlockList = getWidgetBlockList();
-      sendResponse(widgetBlockList);
+      getWidgetBlockList().then(widgetBlockList => {
+        sendResponse(widgetBlockList);
+      }).catch(console.error);
+
+      // indicate this is an async response to chrome.runtime.onMessage
+      return true;
     }
 
   } else if (request.unblockWidget) {
@@ -760,7 +777,7 @@ function dispatcher(request, sender, sendResponse) {
         });
       }
     });
-    //indicate this is an async response to chrome.runtime.onMessage
+    // indicate this is an async response to chrome.runtime.onMessage
     return true;
 
   } else if (request.type == "uploadCloud") {
@@ -773,7 +790,7 @@ function dispatcher(request, sender, sendResponse) {
         sendResponse({success: true});
       }
     });
-    //indicate this is an async response to chrome.runtime.onMessage
+    // indicate this is an async response to chrome.runtime.onMessage
     return true;
 
   } else if (request.type == "savePopupToggle") {
