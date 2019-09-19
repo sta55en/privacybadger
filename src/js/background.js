@@ -304,7 +304,10 @@ Badger.prototype = {
     return new Promise(function (resolve) {
       chrome.tabs.query({}, tabs => {
         tabs.forEach(tab => {
-          self.recordFrame(tab.id, 0, tab.url);
+          // don't record on special browser pages
+          if (!utils.isRestrictedUrl(tab.url)) {
+            self.recordFrame(tab.id, 0, tab.url);
+          }
         });
         resolve();
       });
@@ -914,9 +917,11 @@ Badger.prototype = {
       return;
     }
 
-    let iconFilename;
+    let self = this, iconFilename;
+
     // TODO grab hostname from tabData instead
-    if (this.isPrivacyBadgerEnabled(window.extractHostFromURL(tab_url))) {
+    if (!utils.isRestrictedUrl(tab_url) &&
+        self.isPrivacyBadgerEnabled(window.extractHostFromURL(tab_url))) {
       iconFilename = {
         19: chrome.runtime.getURL("icons/badger-19.png"),
         38: chrome.runtime.getURL("icons/badger-38.png")
