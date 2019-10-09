@@ -42,6 +42,11 @@ function getOriginsArray(origins, filter_text, type_filter, status_filter) {
   function matchesFormFilters(origin) {
     const value = origins[origin];
 
+    // hide the not-yet-seen-on-enough-sites potential trackers
+    if (value == "allow") {
+      return false;
+    }
+
     // filter by type
     if (type_filter) {
       if (type_filter == "user") {
